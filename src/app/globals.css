@@ -1,19 +1,40 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Patrick+Hand&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --cream: #FFFEF5;
+  /* Warm garden palette — intentional, not decorative */
+  --cream: #FBF8F1;
   --warm-white: #FFF9F0;
-  --sage: #4A9E3B;
-  --deep-green: #2D7A1E;
-  --sky: #87CEEB;
-  --sky-light: #B5E8F7;
-  --purple: #6B5CE7;
-  --purple-light: #E8E4FF;
-  --coral: #FF6B6B;
-  --sun: #FECA57;
-  --ink: #2D3436;
-  --ink-soft: #636E72;
+  --sage: #5B9A3C;
+  --deep-green: #2B6E1A;
+  --forest: #1E4D12;
+  --sky: #7EC8E3;
+  --sky-deep: #4AA8D8;
+  --terracotta: #D4654A;
+  --terracotta-light: #FAEAE5;
+  --terracotta-dark: #B84A32;
+  --sun: #F5C542;
+  --sun-warm: #E8A925;
+  --ink: #2A2F2A;
+  --ink-soft: #5A665A;
+  --ink-muted: #8A948A;
+
+  /* Typography scale — fluid, modular (1.25 ratio) */
+  --text-xs: clamp(0.7rem, 0.65rem + 0.25vw, 0.8rem);
+  --text-sm: clamp(0.8rem, 0.75rem + 0.3vw, 0.9rem);
+  --text-base: clamp(0.95rem, 0.9rem + 0.3vw, 1.05rem);
+  --text-lg: clamp(1.1rem, 1rem + 0.5vw, 1.3rem);
+  --text-xl: clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
+  --text-2xl: clamp(1.8rem, 1.4rem + 1.8vw, 2.6rem);
+  --text-hero: clamp(2.4rem, 1.6rem + 3.5vw, 4rem);
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
 }
 
 * {
@@ -23,7 +44,8 @@
 body {
   background: var(--cream);
   color: var(--ink);
-  font-family: 'Patrick Hand', cursive;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -36,47 +58,36 @@ body {
   user-select: none;
 }
 
-/* Subtle paper texture via noise */
-.paper-texture {
-  position: relative;
-}
-.paper-texture::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1;
-  border-radius: inherit;
-}
-
-/* Flower pop-in animation */
+/* Flower pop-in — spring-like overshoot */
 @keyframes flowerGrow {
   0% {
-    transform: translate(-50%, -100%) scale(0);
+    transform: scale(0) translateY(8px);
     opacity: 0;
   }
-  50% {
-    transform: translate(-50%, -100%) scale(1.15);
+  60% {
+    transform: scale(1.12) translateY(-2px);
     opacity: 1;
   }
+  80% {
+    transform: scale(0.95) translateY(0);
+  }
   100% {
-    transform: translate(-50%, -100%) scale(1);
+    transform: scale(1) translateY(0);
     opacity: 1;
   }
 }
 
-/* Gentle sway for planted flowers */
+/* Gentle sway for planted flowers — organic feel */
 @keyframes gentleSway {
-  0%, 100% { transform: translate(-50%, -100%) rotate(var(--rot, 0deg)); }
-  50% { transform: translate(-50%, -100%) rotate(calc(var(--rot, 0deg) + 2deg)); }
+  0%, 100% { transform: rotate(-1.5deg); }
+  50% { transform: rotate(1.5deg); }
 }
 
 /* Fade in up for UI elements */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -88,10 +99,22 @@ body {
   animation: fadeInUp 0.5s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
-/* Cloud drift */
+/* Cloud drift — slow, dreamy */
 @keyframes drift {
   0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(12px); }
+  50% { transform: translateX(15px); }
+}
+
+/* Staggered entrance helper */
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Button press feedback */
@@ -104,6 +127,15 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--purple-light);
+  background: var(--terracotta-light);
   border-radius: 3px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
