@@ -32,7 +32,7 @@ type PlantedFlower = {
   y: number;
   scale: number;
   rotation: number;
-  id: number;
+  id: string;
   swayDelay: number;
 };
 
@@ -49,6 +49,7 @@ function DrawingCanvas({
   const [color, setColor] = useState("#D4654A");
   const [brushSize, setBrushSize] = useState(8);
   const [hasDrawn, setHasDrawn] = useState(false);
+  const [isPlanting, setIsPlanting] = useState(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -122,6 +123,9 @@ function DrawingCanvas({
   };
 
   const handlePlant = () => {
+    if (isPlanting) return;
+    setIsPlanting(true);
+
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -139,7 +143,10 @@ function DrawingCanvas({
         }
       }
     }
-    if (maxX <= minX || maxY <= minY) return;
+    if (maxX <= minX || maxY <= minY) {
+      setIsPlanting(false);
+      return;
+    }
 
     const pad = 6;
     minX = Math.max(0, minX - pad);
@@ -331,7 +338,7 @@ function DrawingCanvas({
         </button>
         <button
           onClick={handlePlant}
-          disabled={!hasDrawn}
+          disabled={!hasDrawn || isPlanting}
           className="btn-press"
           style={{
             flex: 1.4,
@@ -340,14 +347,14 @@ function DrawingCanvas({
             fontSize: "var(--text-base)",
             fontWeight: 700,
             border: "none",
-            background: hasDrawn ? "var(--deep-green)" : "#ddd",
-            color: hasDrawn ? "white" : "#aaa",
-            boxShadow: hasDrawn ? "0 4px 16px rgba(43, 110, 26, 0.25)" : "none",
-            cursor: hasDrawn ? "pointer" : "default",
+            background: hasDrawn && !isPlanting ? "var(--deep-green)" : "#ddd",
+            color: hasDrawn && !isPlanting ? "white" : "#aaa",
+            boxShadow: hasDrawn && !isPlanting ? "0 4px 16px rgba(43, 110, 26, 0.25)" : "none",
+            cursor: hasDrawn && !isPlanting ? "pointer" : "default",
             transition: "all 0.2s cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         >
-          Plant it
+          {isPlanting ? "Planting..." : "Plant it"}
         </button>
       </div>
     </div>
@@ -358,9 +365,11 @@ function DrawingCanvas({
 function GardenScene({
   flowers,
   onDrawNew,
+  isLoading,
 }: {
   flowers: PlantedFlower[];
   onDrawNew: () => void;
+  isLoading: boolean;
 }) {
   return (
     <div
@@ -372,7 +381,7 @@ function GardenScene({
         gap: "var(--space-lg)",
       }}
     >
-      {/* Title — big, bold, distinctive */}
+      {/* Title */}
       <div className="text-center">
         <h1
           style={{
@@ -394,9 +403,11 @@ function GardenScene({
             fontWeight: 500,
           }}
         >
-          {flowers.length === 0
+          {isLoading
+            ? "Loading the garden..."
+            : flowers.length === 0
             ? "No flowers yet — be the first to plant one"
-            : `${flowers.length} flower${flowers.length === 1 ? "" : "s"} planted and growing`}
+            : `${flowers.length} flower${flowers.length === 1 ? "" : "s"} planted by visitors`}
         </p>
       </div>
 
@@ -411,7 +422,7 @@ function GardenScene({
             "linear-gradient(180deg, #7EC8E3 0%, #A8DDF0 30%, #6BBF4A 30%, #5AAE39 50%, #4A9E2E 70%, #3D8B24 100%)",
         }}
       >
-        {/* Sun — warm, glowing */}
+        {/* Sun */}
         <div
           className="absolute"
           style={{
@@ -448,7 +459,7 @@ function GardenScene({
           />
         ))}
 
-        {/* Grass blades — subtle depth */}
+        {/* Grass blades */}
         <svg
           className="absolute bottom-0 left-0 w-full pointer-events-none"
           style={{ height: "45px" }}
@@ -471,7 +482,7 @@ function GardenScene({
           })}
         </svg>
 
-        {/* Empty state */}
+        {/* Empty / loading state */}
         {flowers.length === 0 && (
           <div
             className="absolute inset-0 flex items-center justify-center"
@@ -486,7 +497,7 @@ function GardenScene({
                 textShadow: "0 1px 4px rgba(0,0,0,0.1)",
               }}
             >
-              Your garden awaits...
+              {isLoading ? "..." : "Your garden awaits..."}
             </p>
           </div>
         )}
@@ -546,7 +557,7 @@ function GardenScene({
         })}
       </div>
 
-      {/* Draw button — bold, single color, confident */}
+      {/* Draw button */}
       <button
         onClick={onDrawNew}
         className="btn-press"
@@ -599,20 +610,67 @@ function GardenScene({
 export default function FlowerGarden() {
   const [screen, setScreen] = useState<"garden" | "draw">("garden");
   const [flowers, setFlowers] = useState<PlantedFlower[]>([]);
-  const nextId = useRef(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handlePlant = (dataUrl: string, w: number, h: number) => {
-    const newFlower: PlantedFlower = {
+  /* Fetch shared flowers on mount */
+  useEffect(() => {
+    async function loadFlowers() {
+      try {
+        const res = await fetch("/api/flowers");
+        if (res.ok) {
+          const data = await res.json();
+          setFlowers(
+            (data.flowers || []).map((f: PlantedFlower) => ({
+              ...f,
+              id: f.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              swayDelay: f.swayDelay ?? Math.random() * 2,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load flowers:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadFlowers();
+  }, []);
+
+  /* Plant a flower — save to server, then add locally */
+  const handlePlant = async (dataUrl: string, w: number, h: number) => {
+    const flowerData = {
       dataUrl,
       x: 0.08 + Math.random() * 0.84,
       y: Math.random(),
       scale: Math.min(w, h) / 220,
       rotation: (Math.random() - 0.5) * 18,
-      id: nextId.current++,
       swayDelay: Math.random() * 2,
     };
-    setFlowers((prev) => [...prev, newFlower]);
+
+    // Optimistic — show it immediately
+    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticFlower: PlantedFlower = { ...flowerData, id: tempId };
+    setFlowers((prev) => [optimisticFlower, ...prev]);
     setScreen("garden");
+
+    // Persist to server
+    try {
+      const res = await fetch("/api/flowers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(flowerData),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Replace temp ID with server ID
+        setFlowers((prev) =>
+          prev.map((f) => (f.id === tempId ? { ...f, id: data.flower.id } : f))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to save flower:", err);
+      // Flower still shows locally — that's fine
+    }
   };
 
   return (
@@ -624,7 +682,7 @@ export default function FlowerGarden() {
       }}
     >
       {screen === "garden" ? (
-        <GardenScene flowers={flowers} onDrawNew={() => setScreen("draw")} />
+        <GardenScene flowers={flowers} onDrawNew={() => setScreen("draw")} isLoading={isLoading} />
       ) : (
         <DrawingCanvas onPlant={handlePlant} onCancel={() => setScreen("garden")} />
       )}
