@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Patrick+Hand&display=swap');
+
+:root {
+  --cream: #FFFEF5;
+  --warm-white: #FFF9F0;
+  --sage: #4A9E3B;
+  --deep-green: #2D7A1E;
+  --sky: #87CEEB;
+  --sky-light: #B5E8F7;
+  --purple: #6B5CE7;
+  --purple-light: #E8E4FF;
+  --coral: #FF6B6B;
+  --sun: #FECA57;
+  --ink: #2D3436;
+  --ink-soft: #636E72;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Patrick Hand', cursive;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Drawing canvas touch behavior */
+.drawing-area {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Subtle paper texture via noise */
+.paper-texture {
+  position: relative;
+}
+.paper-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* Flower pop-in animation */
+@keyframes flowerGrow {
+  0% {
+    transform: translate(-50%, -100%) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -100%) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -100%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Gentle sway for planted flowers */
+@keyframes gentleSway {
+  0%, 100% { transform: translate(-50%, -100%) rotate(var(--rot, 0deg)); }
+  50% { transform: translate(-50%, -100%) rotate(calc(var(--rot, 0deg) + 2deg)); }
+}
+
+/* Fade in up for UI elements */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+/* Cloud drift */
+@keyframes drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(12px); }
+}
+
+/* Button press feedback */
+.btn-press:active {
+  transform: scale(0.96) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--purple-light);
+  border-radius: 3px;
+}
