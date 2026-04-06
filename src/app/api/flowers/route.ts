@@ -1,7 +1,34 @@
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 
-export const runtime = "edge";
+/*
+ * Connect to Upstash Redis.
+ * Handles both "KV_" and "STORAGE_" env var prefixes —
+ * Vercel's integration UI defaults to "STORAGE" but docs show "KV".
+ */
+function getRedis() {
+  const url =
+    process.env.KV_REST_API_URL ||
+    process.env.STORAGE_REST_API_URL ||
+    process.env.UPSTASH_REDIS_REST_URL ||
+    "";
+  const token =
+    process.env.KV_REST_API_TOKEN ||
+    process.env.STORAGE_REST_API_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    "";
+
+  if (!url || !token) {
+    console.error("Missing Redis credentials. Available env vars:",
+      Object.keys(process.env).filter(k =>
+        k.includes("KV") || k.includes("STORAGE") || k.includes("UPSTASH") || k.includes("REDIS")
+      )
+    );
+    return null;
+  }
+
+  return new Redis({ url, token });
+}
 
 type StoredFlower = {
   id: string;
@@ -17,20 +44,30 @@ type StoredFlower = {
 /* GET — return the most recent 80 flowers */
 export async function GET() {
   try {
-    const raw = await kv.lrange<string>("flowers", 0, 79);
+    const redis = getRedis();
+    if (!redis) {
+      return NextResponse.json({ flowers: [], error: "no_redis" });
+    }
+
+    const raw = await redis.lrange<StoredFlower>("flowers", 0, 79);
     const flowers: StoredFlower[] = (raw || []).map((item) =>
       typeof item === "string" ? JSON.parse(item) : item
     );
     return NextResponse.json({ flowers });
   } catch (err) {
     console.error("GET /api/flowers error:", err);
-    return NextResponse.json({ flowers: [] });
+    return NextResponse.json({ flowers: [], error: String(err) });
   }
 }
 
 /* POST — plant a new flower */
 export async function POST(request: Request) {
   try {
+    const redis = getRedis();
+    if (!redis) {
+      return NextResponse.json({ error: "Redis not configured" }, { status: 500 });
+    }
+
     const body = await request.json();
     const { dataUrl, x, y, scale, rotation, swayDelay } = body;
 
@@ -55,14 +92,14 @@ export async function POST(request: Request) {
     };
 
     // Prepend so newest are first
-    await kv.lpush("flowers", JSON.stringify(flower));
+    await redis.lpush("flowers", JSON.stringify(flower));
 
     // Keep garden from growing forever — trim to 200 flowers
-    await kv.ltrim("flowers", 0, 199);
+    await redis.ltrim("flowers", 0, 199);
 
     return NextResponse.json({ success: true, flower });
   } catch (err) {
     console.error("POST /api/flowers error:", err);
-    return NextResponse.json({ error: "Failed to plant" }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
